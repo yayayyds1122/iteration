@@ -1,0 +1,744 @@
+---
+title: "iteration"
+author: "Jiayi"
+date: "2024-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+set.seed(1)
+x_vec = rnorm(25, mean = 5, sd = 3)
+(x_vec - mean(x_vec)) / sd(x_vec)
+```
+
+Now I'll write a funciton to do this
+
+```{r }
+z_scores = function(x) {
+  
+  if(!is.numeric(x)){
+    stop("x needs to be numeric ")
+  }
+  
+  if (length(x)<5){
+    stop("you need at least five numbers to compute the z score")
+  }
+  
+  z = (x - mean(x)) / sd(x)
+  return(z)
+}
+
+z_scores(x_vec)
+```
+
+does this always work
+```{r, error = TRUE}
+z_scores(x=3)
+```
+
+## A new function
+```{r}
+mean_and_sd = function(x) {
+  
+  if (!is.numeric(x)) {
+    stop("Argument x should be numeric")
+  } else if (length(x) == 1) {
+    stop("Cannot be computed for length 1 vectors")
+  }
+  
+  mean_x = mean(x)
+  sd_x = sd(x)
+
+  out_df = tibble(
+    mean = mean_x, 
+    sd = sd_x
+  )
+  
+  return(out_df)
+}
+```
+
+## Check stuff using a simulation
+
+```{r}
+sim_df = 
+  tibble(
+  x = rnorm(30, mean = 2, sd = 3)
+)
+
+sim_df |> 
+  summarize(
+    mu_hat = mean(x),
+    sigma_hat = sd(x)
+  )
+```
+
+Simulation fucntion to check sample mean and sd
+
+```{r}
+sim_mean_sd = function(samp_size, true_mean, true_sd){
+  sim_df = 
+  tibble(
+  x = rnorm(samp_size, true_mean, true_sd)
+)
+
+out_df |> 
+  sim_df = 
+  summarize(
+    mu_hat = mean(x),
+    sigma_hat = sd(x))
+    
+  return(out_df)
+}
+
+sim_mean_sd(samp_size = 30, true_mean = 4, true_sd = 12)
+```
+
+Revisit LoTR words
+```{r}
+import_data = function(cell_range, movie_name){
+  df = readxl::read_excel("./LotR_Words.xlsx", range = cell_range)|>
+  mutate(movie = movie_name) %>% 
+  janitor::clean_names() %>% 
+    pivot_longer(
+      female:male,
+      names_to = "sex",
+      values_to= "words"
+    ) %>% 
+    select(movie,everything())
+  
+  return(df)
+}
+
+fellowship_ring = import_data("B3:D6","fellowship_ring")
+two_towers = import_data("F3:H6","fellowship_ring")
+return_king = import_data("J3:L6","fellowship_ring")
+
+
+lotr_tidy = bind_rows(fellowship_ring, two_towers, return_king) |>
+  janitor::clean_names() |>
+  pivot_longer(
+    female:male,
+    names_to = "sex",
+    values_to = "words") |> 
+  mutate(race = str_to_lower(race)) |> 
+  select(movie, everything()) 
+```
+
+## NSDUH
+
+```{r}
+nsduh_url = "http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads/2k15StateFiles/NSDUHsaeShortTermCHG2015.htm"
+
+nsduh_html = read_html(nsduh_url)
+
+nsduh_table <- function(html, table_num, table_name) {
+  
+  table = 
+    html |> 
+    html_table() |> 
+    nth(table_num) |>
+    slice(-1) |> 
+    select(-contains("P Value")) |>
+    pivot_longer(
+      -State,
+      names_to = "age_year", 
+      values_to = "percent") |>
+    separate(age_year, into = c("age", "year"), sep = "\\(") |>
+    mutate(
+      year = str_replace(year, "\\)", ""),
+      percent = str_replace(percent, "[a-c]$", ""),
+      percent = as.numeric(percent),
+      name = table_name) |>
+    filter(!(State %in% c("Total U.S.", "Northeast", "Midwest", "South", "West")))
+  
+  table
+  
+}
+nsduh_results = 
+  bind_rows(
+    nsduh_table(nsduh_html, 1, "marj_one_year"),
+    nsduh_table(nsduh_html, 4, "cocaine_one_year"),
+    nsduh_table(nsduh_html, 5, "heroin_one_year")
+  )
+```
+#iteration_listcols
+```{r}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+
+```{r}
+library(tidyverse)
+library(rvest)
+```
+
+
+## Here's some lists
+
+```{r}
+l = list(
+  vec_numeric = 1:4,
+  unif_sample = runif(100),
+  mat = matrix(1:8, nrow = 2, ncol = 4, byrow = TRUE),
+  summary = summary(rnorm(1000))
+)
+
+l
+
+l$mat
+
+l[["mat"]][1, 3] # prefer to do this 
+# you can hold shift and choose multiple lines to type
+l[[1]]
+l[[4]]
+```
+
+
+Make a list that's hopefully a bit more useful.
+
+
+```{r}
+list_norm = 
+  list(
+    a = rnorm(20, 0, 5),
+    b = rnorm(20, 4, 5),
+    c = rnorm(20, 0, 10),
+    d = rnorm(20, 4, 10)
+  )
+  
+list_norm[["b"]]
+```
+
+Let's reuse the function we wrote last time.
+
+
+```{r}
+mean_and_sd = function(x) {
+  
+  mean_x = mean(x)
+  sd_x = sd(x)
+  
+  out_df = 
+    tibble(
+      mean = mean_x,
+      sd = sd_x
+    )
+  
+  return(out_df)
+  
+}
+```
+
+Let's use the function to take mean and sd of all samples.
+
+```{r}
+mean_and_sd(list_norm[["a"]])
+mean_and_sd(list_norm[["b"]])
+mean_and_sd(list_norm[["c"]])
+mean_and_sd(list_norm[["d"]])
+```
+
+## Use a for loop 
+
+Create output list, and run a for loop
+
+```{r}
+output = vector("list", length = 4)
+
+for (i in 1:4) {
+  
+  output[[i]] = mean_and_sd(list_norm[[i]])
+  
+}
+
+output
+
+
+```
+
+
+## Do the same thing
+
+but with `map` instead
+
+
+```{r}
+# input, then function
+output = map(list_norm, mean_and_sd)
+```
+
+
+let's do a couple of other things
+
+```{r}
+output = 
+  map(list_norm, mean_and_sd) |> 
+  bind_rows()
+
+output = map_dfr(list_norm, mean_and_sd) # combine to a single dataframe
+
+output = map_dbl(list_norm, IQR) 
+```
+
+
+## LIST COLUMNS!!!
+
+```{r}
+#must be the same length
+listcol_df = 
+  tibble(
+    name = c("a", "b", "c", "d"),
+    samp = list_norm
+  )
+
+listcol_df
+
+listcol_df |> 
+  filter(name %in% c("a", "b"))
+
+listcol_df |> 
+  select(-samp)
+
+```
+
+```{r}
+listcol_df[["samp"]][["a"]]
+```
+
+Compute mean and sd
+
+```{r}
+mean_and_sd(listcol_df[["samp"]][["a"]])
+mean_and_sd(listcol_df[["samp"]][["b"]])
+
+
+map(listcol_df[["samp"]], mean_and_sd)
+```
+
+ADD A LIST COLUMN!!!
+
+```{r}
+listcol_df |> 
+  mutate(
+    output = map(samp, mean_and_sd),
+    iqr = map_dbl(samp, IQR))
+
+listcol_df |> 
+  mutate(
+    output = map(samp, mean_and_sd),
+    iqr = map_dbl(samp, IQR)) |> 
+  select(-samp) |> 
+  unnest(output) 
+
+```
+
+
+
+### NSDUH
+
+This is a version of our function last time.
+
+```{r}
+nsduh_table_format = function(html, table_num) {
+  
+  out_table = 
+    html |> 
+    html_table() |> 
+    nth(table_num) |> 
+    slice(-1) |> 
+    select(-contains("P Value"))
+  
+  return(out_table)
+  
+}
+```
+
+We need to import the html, and then extract the correct tables.
+
+```{r}
+nsduh_url = "http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads/2k15StateFiles/NSDUHsaeShortTermCHG2015.htm"
+
+nsduh_html = read_html(nsduh_url)
+```
+
+
+```{r}
+nsduh_table_format(html = nsduh_html, table_num = 1)
+nsduh_table_format(html = nsduh_html, table_num = 4)
+nsduh_table_format(html = nsduh_html, table_num = 5)
+```
+
+
+```{r}
+nsduh_df =
+  tibble(
+    drug = c("marj", "cocaine", "herion"),
+    table_n = c(1, 4, 5)
+  ) |> 
+  mutate(table = map(table_n, nsduh_table_format, html = nsduh_html)) |> 
+  unnest(table)
+
+nsduh_df =
+  tibble(
+    drug = c("marj", "cocaine", "herion"),
+    table_n = c(1, 4, 5)
+  ) |> 
+  mutate(table = 
+           map(table_n, \(x) nsduh_table_format(html = nsduh_html, table_num = x))) |> # short hand notation
+  unnest(table)
+
+
+nsduh_df |> 
+  filter(State == "New York")
+
+
+  
+```
+
+
+
+### Weather data
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+Create a list column.
+
+```{r}
+weather_nest = 
+  weather_df |> 
+  nest(data = date:tmin)
+```
+
+```{r}
+weather_nest[["data"]][[1]]
+```
+
+Let's try regressing tmax on tmin.
+
+```{r}
+lm(tmax ~ tmin, data = weather_nest[["data"]][[1]])
+lm(tmax ~ tmin, data = weather_nest[["data"]][[2]])
+lm(tmax ~ tmin, data = weather_nest[["data"]][[3]])
+```
+
+
+Let's define a function that fits the regression I want.
+
+```{r}
+weather_lm = function(df) {
+  
+  lm(tmax~tmin, data = df)
+  
+}
+```
+
+I could run the models using the short function
+
+```{r}
+weather_lm(weather_nest[["data"]][[1]])
+```
+
+```{r}
+weather_nest |> 
+  mutate(model_fit = map(data, weather_lm))
+```
+
+
+
+
+```{r}
+weather_nest |> 
+  mutate(model_fit = map(data, \(x) lm(tmax ~ tmin, data = x))) 
+```
+
+
+Load key packages.
+
+```{r}
+library(tidyverse)
+
+set.seed(1031)
+```
+
+
+## writing a simulation function
+
+```{r}
+sim_mean_sd = function(samp_size, true_mean = 10, true_sd = 5) {
+  
+  sim_df = 
+    tibble(
+      x = rnorm(samp_size, true_mean, true_sd)
+    )
+
+  out_df = 
+    sim_df |> 
+    summarize(
+      samp_mean = mean(x),
+      samp_sd = sd(x)
+    )
+  
+  return(out_df)
+}
+
+sim_mean_sd(samp_size = 30, true_mean = 4, true_sd = 12)
+```
+
+
+run this a lot of times ...
+
+```{r}
+sim_mean_sd(30)
+```
+
+run this using a for loop?
+
+```{r}
+output = vector("list", 1000)
+
+for (i in 1:1000) {
+  
+  output[[i]] = sim_mean_sd(30)
+  
+}
+
+# output
+
+bind_rows(output) |> 
+  summarize(
+    ave_samp_mean = mean(samp_mean),
+    SE_samp_mean = sd(samp_mean))
+
+```
+
+
+
+Can I use map instead
+
+```{r}
+sim_res = 
+  tibble(
+    iter = 1:1000
+  ) |> 
+  mutate(samp_res = map(iter, sim_mean_sd, samp_size = 30)) |> 
+  unnest(samp_res)
+```
+
+Could I try different sample sizes?
+
+```{r}
+sim_res = 
+  expand_grid(
+    n = c(10, 30, 60, 100),
+    iter = 1:1000
+  ) |> 
+  mutate(samp_res = map(n, \(x) sim_mean_sd(x, true_mean = 50))   ) |> 
+  unnest(samp_res)
+```
+
+
+```{r}
+sim_res |> 
+  group_by(n) |> 
+  summarize(
+    se = sd(samp_mean)
+  )
+```
+
+
+
+```{r}
+sim_res |> 
+  mutate(
+    n = str_c("n = ", n),
+    n = fct_inorder(n)) |> 
+  ggplot(aes(x = n, y = samp_mean)) + 
+  geom_violin()
+```
+
+
+
+
+
+go even simpler for a sec
+
+
+```{r}
+sim_mean_sd = function(samp_size) {
+  
+  sim_df = 
+    tibble(
+      x = rnorm(samp_size, 10, 5)
+    )
+
+  out_df = 
+    sim_df |> 
+    summarize(
+      samp_mean = mean(x),
+      samp_sd = sd(x)
+    )
+  
+  return(out_df)
+}
+
+sim_res = 
+  expand_grid(
+    n = c(10, 30, 60, 100),
+    iter = 1:1000
+  ) |> 
+  mutate(samp_res = map(n, sim_mean_sd   )) |> 
+  unnest(samp_res)
+
+```
+
+
+### SLR
+
+
+```{r}
+sim_data = 
+  tibble(
+    x = rnorm(30, mean = 1, sd = 1),
+    y = 2 + 3 * x + rnorm(30, 0, 1)
+  )
+
+lm_fit = lm(y ~ x, data = sim_data)
+
+sim_data |> 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point() + 
+  stat_smooth(method = "lm")
+
+```
+
+
+## Birthday problem!!!
+
+Let's put people in a room.
+
+
+```{r}
+bday_sim = function(n) {
+
+  bdays = sample(1:365, size = n, replace = TRUE)
+  
+  duplicate = length(unique(bdays)) < n
+
+  return(duplicate)
+  
+}
+
+bday_sim(10)
+```
+
+run this a lot
+
+```{r}
+sim_res = 
+  expand_grid(
+    n = 2:50,
+    iter = 1:10000
+  ) |> 
+  mutate(res = map_lgl(n, bday_sim)) |> 
+  group_by(n) |> 
+  summarize(prob = mean(res))
+
+sim_res |> 
+  ggplot(aes(x = n, y = prob )) + 
+  geom_line()
+```
+
+
+
+
+
+
+Turn this into a function
+
+```{r}
+sim_regression = function(n) {
+  
+  sim_data = 
+    tibble(
+      x = rnorm(n, mean = 1, sd = 1),
+      y = 2 + 3 * x + rnorm(n, 0, 1)
+    )
+
+  lm_fit = lm(y ~ x, data = sim_data)
+
+  out_df = 
+    tibble(
+      beta0_hat = coef(lm_fit)[1],
+      beta1_hat = coef(lm_fit)[2]
+    )
+  
+  return(out_df)
+
+}
+
+
+sim_res = 
+  expand_grid(
+    sample_size = c(30, 60), 
+    iter = 1:1000
+  ) |> 
+  mutate(lm_res = map(sample_size, sim_regression)) |> 
+  unnest(lm_res)
+
+sim_res |> 
+  mutate(sample_size = str_c("n = ", sample_size)) |> 
+  ggplot(aes(x = sample_size, y = beta1_hat)) + 
+  geom_boxplot()
+
+
+sim_res |> 
+  filter(sample_size == 30) |> 
+  ggplot(aes(x = beta0_hat, y = beta1_hat)) +
+  geom_point()
+
+```
